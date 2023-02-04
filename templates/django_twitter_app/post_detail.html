@@ -25,7 +25,33 @@
                     </div>
                   </div>
                 </div>
+            </div>
+            <div class="border m-3 border-dark border-2">
+                Комментарии
+         <form action="{% url 'django_twitter_app:post_comment_create' post.id %}"
+            method="POST"
+            enctype="multipart/form-data">
+
+             {% csrf_token %}
+             <h1 class="h3 mb-3 fw-normal">Оставьте комментарий</h1>
+             <div class="input-group">
+             <input type="text" class="form-control w-75" maxlength="300" minlength="1" required placeholder="введите сюда комментарий..." name="text">
+             <button class="w-25 btn btn-sm btn-primary form-control" type="submit">опубликовать</button>
+             </div>
+         </form>
+            </div>
         </div>
-    </div>
+        <ul class="list-group">
+            {% for comment in comments %}
+            <li class="list-group-item">
+                {{ comment.user }} {{ comment.text }} {{ comment.created }}
+                <a href="{% url 'django_twitter_app:post_comment_delete' comment.id %}" class="text-decoration-none btn">
+                    <i class="fa-solid fa-trash text-danger"></i>
+                </a>
+
+            </li>
+            {% endfor %}
+        </ul>
+
 
 {% endblock main %}

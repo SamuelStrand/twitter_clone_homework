@@ -1,6 +1,7 @@
+from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.hashers import make_password
-from django.contrib.auth.models import User
-from django.http import HttpRequest, HttpResponse
+from django.contrib.auth.models import User, update_last_login
+from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import render, redirect
 from django.urls import reverse
 from django.views import View
@@ -34,7 +35,6 @@ def home_view(request: HttpRequest) -> HttpResponse:  # TODO контролле�
 
 
 def register(request: HttpRequest) -> HttpResponse:
-
     if request.method == "GET":
         context = {}
         return render(request, 'django_twitter_app/register.html', context=context)
@@ -61,14 +61,30 @@ def register(request: HttpRequest) -> HttpResponse:
             raise Exception("данные не заполнены!")
 
 
-def login(request: HttpRequest) -> HttpResponse:
-    context = {}
-    return render(request, 'django_twitter_app/home.html', context=context)
+def login_f(request: HttpRequest) -> HttpResponse:
+    if request.method == 'GET':
+        context = {}
+        return render(request, 'django_twitter_app/login.html', context=context)
+    if request.method == 'POST':
+        username = request.POST.get('username', "")
+        password = request.POST.get('password', "")
+        if username and password:
+            pass
+            user_obj = authenticate(username=username, password=password)
+            if user_obj:
+                context = {}
+                login(request, user_obj)
+                update_last_login(sender=None, user=user_obj)
+                return redirect(reverse('django_twitter_app:home', args=()))
+            else:
+                raise Exception('данные не совпадают')
+        else:
+            raise Exception('no data')
 
 
-def logout(request: HttpRequest) -> HttpResponse:
-    context = {}
-    return render(request, 'django_twitter_app/home.html', context=context)
+def logout_f(request: HttpRequest) -> HttpResponse:
+    logout(request)
+    return redirect(reverse('django_twitter_app:login', args=()))
 
 
 def post_create(request: HttpRequest) -> HttpResponse:
@@ -76,12 +92,12 @@ def post_create(request: HttpRequest) -> HttpResponse:
         context = {}
         return render(request, 'django_twitter_app/post_create.html', context=context)
     elif request.method == 'POST':
-        print('request:', request)
         title = request.POST.get('title', None)
         description = request.POST.get('description', "")
         models.Post.objects.create(
+            user=request.user,
             title=title,
-            description=description
+            description=description,
         )
 
         context = {}
@@ -112,7 +128,8 @@ def post_update(request: HttpRequest, pk: int) -> HttpResponse:
 
 def post_detail(request: HttpRequest, pk: int) -> HttpResponse:
     post = models.Post.objects.get(id=pk)
-    context = {'post': post}
+    comments = models.PostComment.objects.filter(article=post)
+    context = {'post': post, 'comments': comments}
     return render(request, 'django_twitter_app/post_detail.html', context=context)
 
 
@@ -129,3 +146,28 @@ def post_pk_view(request: HttpRequest, pk: int) -> HttpResponse:
         # context = {'post_list': post_list}
         context = {}
         return render(request, 'django_twitter_app/post_detail.html', context=context)
+
+
+def post_comment_create(request: HttpRequest, pk: int) -> HttpResponse:
+    if request.method == 'POST':
+        text = request.POST.get('text', None)
+        post = models.Post.objects.get(id=pk)
+        models.PostComment.objects.create(
+            user=request.user,
+            article=post,
+            text=text
+        )
+
+        return redirect(reverse('django_twitter_app:post_detail', args=(pk,)))
+
+
+def post_comment_delete(request: HttpRequest, pk: int) -> HttpResponse:
+    comment = models.PostComment.objects.get(id=pk)
+    pk = comment.article.id
+    comment.delete()
+    return redirect(reverse('django_twitter_app:post_detail', args=(pk,)))
+
+
+def homework_task(request: HttpRequest):
+    list1 = [{'id': x, 'name': f'Emil  {x}', 'age': 10 + x} for x in range(1, 100)]
+    return JsonResponse(data=list1, safe=False)
